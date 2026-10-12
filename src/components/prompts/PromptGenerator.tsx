@@ -40,7 +40,6 @@ export default function PromptGenerator() {
   const [plantillas, setPlantillas] = useState(plantillasSistema);
   const [estilos, setEstilos] = useState(estilosIniciales);
   const [variantes, setVariantes] = useState([]);
-  const [mostrarVariantes, setMostrarVariantes] = useState(false);
   const [mostrarAnalizador, setMostrarAnalizador] = useState(false);
   const [promptAnalizar, setPromptAnalizar] = useState('');
   const [sugerencias, setSugerencias] = useState([]);
@@ -103,7 +102,7 @@ export default function PromptGenerator() {
       if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); generarFinal(); }
       if (e.ctrlKey && e.key === 's') { e.preventDefault(); guardarEnHistorial(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'C') { e.preventDefault(); copiarPrompt(); }
-      if (e.key === 'Escape') { setModalCRUD(null); setMostrarRefiner(false); setMostrarHistorial(false); setMostrarVariantes(false); setMostrarAnalizador(false); }
+      if (e.key === 'Escape') { setModalCRUD(null); setMostrarRefiner(false); setMostrarHistorial(false); setVariantes([]); setMostrarAnalizador(false); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -260,7 +259,6 @@ export default function PromptGenerator() {
 
   const generarVariantesFn = () => {
     setVariantes(generarVariantes(prompt, estilos));
-    setMostrarVariantes(true);
   };
 
   const guardarCRUD = (tipo, item, modo) => {
@@ -315,16 +313,70 @@ export default function PromptGenerator() {
         <div className={`grid gap-4 ${modoFocus ? 'grid-cols-1' : 'lg:grid-cols-[1fr_380px]'}`}>
           {/* Columna izquierda */}
           <div className="space-y-4">
-            {/* Sujeto / Idea Base */}
+            {/* Sujeto / Idea Base - Con campos de plantilla si está seleccionada */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-              <label className="text-sm font-medium text-slate-400 mb-2 block">Sujeto / Idea Base</label>
-              <input 
-                type="text" 
-                value={sujeto} 
-                onChange={(e) => setSujeto(e.target.value)} 
-                placeholder="Describe el sujeto principal... ej: una mujer guerrera con armadura dorada" 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition" 
-              />
+              {plantillaSeleccionada ? (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-cyan-400" />
+                      <label className="text-sm font-medium text-cyan-400">Plantilla: {plantillaSeleccionada.nombre}</label>
+                    </div>
+                    <button 
+                      onClick={() => { setPlantillaSeleccionada(null); setValoresPlantilla({}); setSujeto(''); }}
+                      className="text-xs text-slate-400 hover:text-white transition flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" /> Cerrar
+                    </button>
+                  </div>
+                  {plantillaSeleccionada.descripcion && (
+                    <p className="text-xs text-slate-500 mb-3">{plantillaSeleccionada.descripcion}</p>
+                  )}
+                  <div className="space-y-3">
+                    {plantillaSeleccionada.variables?.map((variable, index) => (
+                      <div key={index}>
+                        <label className="text-xs text-cyan-400 block mb-1 font-medium capitalize">
+                          {variable.nombre.replace(/_/g, ' ')}
+                        </label>
+                        {variable.descripcion && (
+                          <p className="text-xs text-slate-500 mb-1">{variable.descripcion}</p>
+                        )}
+                        <input
+                          type="text"
+                          value={valoresPlantilla[variable.nombre] || ''}
+                          onChange={(e) => {
+                            const nuevosValores = { ...valoresPlantilla, [variable.nombre]: e.target.value };
+                            setValoresPlantilla(nuevosValores);
+                            // Actualizar sujeto combinando todos los valores
+                            const sujetoCombinado = Object.values(nuevosValores).filter(v => v).join(', ');
+                            setSujeto(sujetoCombinado);
+                          }}
+                          placeholder={variable.default || `Escribe ${variable.nombre}...`}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {/* Vista previa del sujeto combinado */}
+                  {sujeto && (
+                    <div className="mt-3 bg-slate-800/50 rounded-lg p-2 border border-slate-700/50">
+                      <span className="text-xs text-slate-500 block mb-1">Sujeto combinado (alimenta el prompt):</span>
+                      <p className="text-xs text-slate-300">{sujeto}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <label className="text-sm font-medium text-slate-400 mb-2 block">Sujeto / Idea Base</label>
+                  <input 
+                    type="text" 
+                    value={sujeto} 
+                    onChange={(e) => setSujeto(e.target.value)} 
+                    placeholder="Describe el sujeto principal... ej: una mujer guerrera con armadura dorada" 
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition" 
+                  />
+                </>
+              )}
             </div>
 
             {/* Editor de Prompt */}
@@ -574,56 +626,46 @@ export default function PromptGenerator() {
               </div>
             </div>
 
-            {/* Variables de Plantilla */}
-            {plantillaSeleccionada && (
-              <div className="bg-slate-900 border border-cyan-900/30 rounded-xl p-4">
+            {/* Variantes A/B - Card debajo del Prompt Final */}
+            {variantes.length > 0 && (
+              <div className="bg-slate-900 border border-purple-900/30 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-cyan-400" />
-                    <label className="text-sm font-medium text-cyan-400">Variables de Plantilla: {plantillaSeleccionada.nombre}</label>
+                    <Layers className="w-4 h-4 text-purple-400" />
+                    <label className="text-sm font-medium text-purple-400">Variantes A/B Testing</label>
                   </div>
                   <button 
-                    onClick={() => { setPlantillaSeleccionada(null); setValoresPlantilla({}); }}
+                    onClick={() => setVariantes([])}
                     className="text-xs text-slate-400 hover:text-white transition flex items-center gap-1"
                   >
                     <X className="w-3 h-3" /> Cerrar
                   </button>
                 </div>
-                {plantillaSeleccionada.descripcion && (
-                  <p className="text-xs text-slate-500 mb-3">{plantillaSeleccionada.descripcion}</p>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {plantillaSeleccionada.variables?.map((variable, index) => (
-                    <div key={index}>
-                      <label className="text-xs text-cyan-400 block mb-1 font-medium capitalize">
-                        {variable.nombre.replace(/_/g, ' ')}
-                      </label>
-                      {variable.descripcion && (
-                        <p className="text-xs text-slate-500 mb-1">{variable.descripcion}</p>
-                      )}
-                      <input
-                        type="text"
-                        value={valoresPlantilla[variable.nombre] || ''}
-                        onChange={(e) => {
-                          const nuevosValores = { ...valoresPlantilla, [variable.nombre]: e.target.value };
-                          setValoresPlantilla(nuevosValores);
-                          // Actualizar sujeto combinando todos los valores
-                          const sujetoCombinado = Object.values(nuevosValores).filter(v => v).join(', ');
-                          setSujeto(sujetoCombinado);
-                        }}
-                        placeholder={variable.default || `Escribe ${variable.nombre}...`}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
-                      />
+                <p className="text-xs text-slate-500 mb-3">Compara diferentes versiones del prompt y elige la mejor</p>
+                <div className="space-y-3">
+                  {variantes.map((v, i) => (
+                    <div key={i} className="bg-slate-800 rounded-lg p-3 border border-slate-700 hover:border-purple-800/50 transition">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-purple-400">{v.nombre}</span>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => { setPrompt(v.prompt); }} 
+                            className="text-xs px-2 py-1 rounded bg-purple-950 text-purple-300 hover:bg-purple-900 transition"
+                          >
+                            Usar esta
+                          </button>
+                          <button 
+                            onClick={() => { navigator.clipboard.writeText(v.prompt); }}
+                            className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600 transition"
+                          >
+                            <Copy className="w-3 h-3 inline" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-300 font-mono leading-relaxed">{v.prompt}</p>
                     </div>
                   ))}
                 </div>
-                {/* Vista previa del sujeto combinado */}
-                {sujeto && (
-                  <div className="mt-3 bg-slate-800/50 rounded-lg p-2 border border-slate-700/50">
-                    <span className="text-xs text-slate-500 block mb-1">Sujeto combinado:</span>
-                    <p className="text-xs text-slate-300">{sujeto}</p>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -887,27 +929,7 @@ export default function PromptGenerator() {
         </div>
       )}
 
-      {mostrarVariantes && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setMostrarVariantes(false)}>
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2"><Layers className="w-5 h-5 text-cyan-400" /> Variantes A/B</h3>
-              <button onClick={() => setMostrarVariantes(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="space-y-3">
-              {variantes.map((v, i) => (
-                <div key={i} className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-cyan-400">{v.nombre}</span>
-                    <button onClick={() => { setPrompt(v.prompt); setMostrarVariantes(false); }} className="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 hover:bg-cyan-900">Usar</button>
-                  </div>
-                  <p className="text-xs text-slate-300 font-mono">{v.prompt.substring(0, 150)}...</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {mostrarAnalizador && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setMostrarAnalizador(false)}>
