@@ -9,7 +9,7 @@ import { refinarPrompt } from '../../utils/llm-refiner.js';
 import { exportarPrompt } from '../../utils/api-integration.js';
 import { 
   Sparkles, Copy, Check, Shuffle, Save, Star, Trash2, Plus, Edit3, X, 
-  Search, Zap, Globe, Wand2, Layers, Palette, Type, History, BarChart3, Focus
+  Search, Zap, Globe, Wand2, Layers, Palette, Type, History, BarChart3, Focus, Send
 } from 'lucide-react';
 
 // Componente principal
@@ -46,6 +46,15 @@ export default function PromptGenerator() {
   const [sugerencias, setSugerencias] = useState([]);
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState(null);
   const [valoresPlantilla, setValoresPlantilla] = useState({});
+  const [interfazSeleccionada, setInterfazSeleccionada] = useState('a1111');
+  const [enviando, setEnviando] = useState(false);
+  const [estadoEnvio, setEstadoEnvio] = useState(null); // 'exito' | 'error' | null
+  const [mensajeEnvio, setMensajeEnvio] = useState('');
+  const [configInterfaz, setConfigInterfaz] = useState({
+    a1111: { url: 'http://127.0.0.1:7860', sampler: 'Euler a', steps: 20, cfg: 7, width: 512, height: 512 },
+    comfyui: { url: 'http://127.0.0.1:8188', modelo: 'sd_xl_base_1.0.safetensors', steps: 20, cfg: 7, width: 1024, height: 1024 }
+  });
+  const [mostrarConfigInterfaz, setMostrarConfigInterfaz] = useState(false);
   const textareaRef = useRef(null);
   const traduceTimeoutRef = useRef(null);
 
@@ -157,6 +166,89 @@ export default function PromptGenerator() {
 
   const generarFinal = () => { setPrompt(resolverMacros(prompt, macros)); };
 
+  // Enviar prompt a interfaz (A1111 o ComfyUI)
+  const enviarAInterfaz = async () => {
+    if (!prompt) return;
+    setEnviando(true);
+    setEstadoEnvio(null);
+    setMensajeEnvio('');
+
+    const config = configInterfaz[interfazSeleccionada];
+    const promptFinal = promptEN || prompt; // Usar traducción si está disponible
+
+    try {
+      if (interfazSeleccionada === 'a1111') {
+        const response = await fetch(`${config.url}/sdapi/v1/txt2img`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: promptFinal,
+            negative_prompt: negative,
+            steps: config.steps,
+            cfg_scale: config.cfg,
+            width: config.width,
+            height: config.height,
+            sampler_name: config.sampler,
+          }),
+          signal: AbortSignal.timeout(5000)
+        });
+
+        if (response.ok) {
+          setEstadoEnvio('exito');
+          setMensajeEnvio('✓ Prompt enviado a A1111 correctamente');
+        } else {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+      } else if (interfazSeleccionada === 'comfyui') {
+        const workflow = {
+          prompt: {
+            "3": {
+              class_type: "KSampler",
+              inputs: {
+                seed: Math.floor(Math.random() * 999999999),
+                steps: config.steps,
+                cfg: config.cfg,
+                sampler_name: "euler",
+                scheduler: "normal",
+                denoise: 1,
+                model: ["4", 0],
+                positive: ["6", 0],
+                negative: ["7", 0],
+                latent_image: ["5", 0]
+              }
+            },
+            "4": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: config.modelo } },
+            "5": { class_type: "EmptyLatentImage", inputs: { width: config.width, height: config.height, batch_size: 1 } },
+            "6": { class_type: "CLIPTextEncode", inputs: { text: promptFinal, clip: ["4", 1] } },
+            "7": { class_type: "CLIPTextEncode", inputs: { text: negative, clip: ["4", 1] } },
+            "8": { class_type: "VAEDecode", inputs: { samples: ["3", 0], vae: ["4", 2] } },
+            "9": { class_type: "SaveImage", inputs: { filename_prefix: "PromptGen", images: ["8", 0] } }
+          }
+        };
+
+        const response = await fetch(`${config.url}/prompt`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(workflow),
+          signal: AbortSignal.timeout(5000)
+        });
+
+        if (response.ok) {
+          setEstadoEnvio('exito');
+          setMensajeEnvio('✓ Prompt enviado a ComfyUI correctamente');
+        } else {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+      }
+    } catch (error) {
+      setEstadoEnvio('error');
+      setMensajeEnvio(`✗ Error: ${error.message}. Verifica que la interfaz esté corriendo en ${config.url}`);
+    } finally {
+      setEnviando(false);
+      setTimeout(() => { setEstadoEnvio(null); setMensajeEnvio(''); }, 5000);
+    }
+  };
+
   const refinar = async () => {
     setRefinando(true);
     const resultado = await refinarPrompt(prompt, estiloRefiner);
@@ -223,72 +315,16 @@ export default function PromptGenerator() {
         <div className={`grid gap-4 ${modoFocus ? 'grid-cols-1' : 'lg:grid-cols-[1fr_380px]'}`}>
           {/* Columna izquierda */}
           <div className="space-y-4">
-            {/* Sujeto / Campos de Plantilla */}
+            {/* Sujeto / Idea Base */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-              {plantillaSeleccionada ? (
-                // Mostrar campos de la plantilla
-                <>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-cyan-400" />
-                      <label className="text-sm font-medium text-cyan-400">{plantillaSeleccionada.nombre}</label>
-                    </div>
-                    <button 
-                      onClick={() => { setPlantillaSeleccionada(null); setValoresPlantilla({}); }}
-                      className="text-xs text-slate-400 hover:text-white transition flex items-center gap-1"
-                    >
-                      <X className="w-3 h-3" /> Cerrar plantilla
-                    </button>
-                  </div>
-                  {plantillaSeleccionada.descripcion && (
-                    <p className="text-xs text-slate-500 mb-3">{plantillaSeleccionada.descripcion}</p>
-                  )}
-                  <div className="space-y-3">
-                    {plantillaSeleccionada.variables?.map((variable, index) => (
-                      <div key={index}>
-                        <label className="text-xs text-cyan-400 block mb-1 font-medium capitalize">
-                          {variable.nombre.replace(/_/g, ' ')}
-                        </label>
-                        {variable.descripcion && (
-                          <p className="text-xs text-slate-500 mb-1">{variable.descripcion}</p>
-                        )}
-                        <input
-                          type="text"
-                          value={valoresPlantilla[variable.nombre] || ''}
-                          onChange={(e) => {
-                            const nuevosValores = { ...valoresPlantilla, [variable.nombre]: e.target.value };
-                            setValoresPlantilla(nuevosValores);
-                            // Actualizar sujeto combinando todos los valores
-                            const sujetoCombinado = Object.values(nuevosValores).filter(v => v).join(', ');
-                            setSujeto(sujetoCombinado);
-                          }}
-                          placeholder={variable.default || `Escribe ${variable.nombre}...`}
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {/* Vista previa del sujeto combinado */}
-                  {sujeto && (
-                    <div className="mt-3 bg-slate-800/50 rounded-lg p-2 border border-slate-700/50">
-                      <span className="text-xs text-slate-500 block mb-1">Sujeto combinado:</span>
-                      <p className="text-xs text-slate-300">{sujeto}</p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                // Input normal de sujeto
-                <>
-                  <label className="text-sm font-medium text-slate-400 mb-2 block">Sujeto / Idea Base</label>
-                  <input 
-                    type="text" 
-                    value={sujeto} 
-                    onChange={(e) => setSujeto(e.target.value)} 
-                    placeholder="Describe el sujeto principal... ej: una mujer guerrera con armadura dorada" 
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition" 
-                  />
-                </>
-              )}
+              <label className="text-sm font-medium text-slate-400 mb-2 block">Sujeto / Idea Base</label>
+              <input 
+                type="text" 
+                value={sujeto} 
+                onChange={(e) => setSujeto(e.target.value)} 
+                placeholder="Describe el sujeto principal... ej: una mujer guerrera con armadura dorada" 
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition" 
+              />
             </div>
 
             {/* Editor de Prompt */}
@@ -391,7 +427,205 @@ export default function PromptGenerator() {
                 <button onClick={generarVariantesFn} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition"><Layers className="w-3 h-3" /> Variantes</button>
                 <button onClick={() => setMostrarAnalizador(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition"><BarChart3 className="w-3 h-3" /> Analizar</button>
               </div>
+
+              {/* Envío a interfaces */}
+              <div className="mt-4 pt-4 border-t border-slate-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Send className="w-4 h-4 text-cyan-400" />
+                  <span className="text-sm font-medium text-slate-300">Enviar a:</span>
+                  <select 
+                    value={interfazSeleccionada} 
+                    onChange={(e) => setInterfazSeleccionada(e.target.value)}
+                    className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300"
+                  >
+                    <option value="a1111">Automatic1111</option>
+                    <option value="comfyui">ComfyUI</option>
+                  </select>
+                  <button 
+                    onClick={() => setMostrarConfigInterfaz(!mostrarConfigInterfaz)}
+                    className="text-xs text-slate-400 hover:text-white transition"
+                  >
+                    ⚙️ Config
+                  </button>
+                </div>
+
+                {/* Configuración de interfaz */}
+                {mostrarConfigInterfaz && (
+                  <div className="mb-3 bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-slate-400 block mb-1">URL:</label>
+                        <input
+                          type="text"
+                          value={configInterfaz[interfazSeleccionada].url}
+                          onChange={(e) => setConfigInterfaz(prev => ({
+                            ...prev,
+                            [interfazSeleccionada]: { ...prev[interfazSeleccionada], url: e.target.value }
+                          }))}
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-1">Steps:</label>
+                        <input
+                          type="number"
+                          value={configInterfaz[interfazSeleccionada].steps}
+                          onChange={(e) => setConfigInterfaz(prev => ({
+                            ...prev,
+                            [interfazSeleccionada]: { ...prev[interfazSeleccionada], steps: parseInt(e.target.value) }
+                          }))}
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-1">CFG Scale:</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={configInterfaz[interfazSeleccionada].cfg}
+                          onChange={(e) => setConfigInterfaz(prev => ({
+                            ...prev,
+                            [interfazSeleccionada]: { ...prev[interfazSeleccionada], cfg: parseFloat(e.target.value) }
+                          }))}
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-1">Width:</label>
+                        <input
+                          type="number"
+                          value={configInterfaz[interfazSeleccionada].width}
+                          onChange={(e) => setConfigInterfaz(prev => ({
+                            ...prev,
+                            [interfazSeleccionada]: { ...prev[interfazSeleccionada], width: parseInt(e.target.value) }
+                          }))}
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-1">Height:</label>
+                        <input
+                          type="number"
+                          value={configInterfaz[interfazSeleccionada].height}
+                          onChange={(e) => setConfigInterfaz(prev => ({
+                            ...prev,
+                            [interfazSeleccionada]: { ...prev[interfazSeleccionada], height: parseInt(e.target.value) }
+                          }))}
+                          className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200"
+                        />
+                      </div>
+                      {interfazSeleccionada === 'a1111' && (
+                        <div>
+                          <label className="text-slate-400 block mb-1">Sampler:</label>
+                          <input
+                            type="text"
+                            value={configInterfaz.a1111.sampler}
+                            onChange={(e) => setConfigInterfaz(prev => ({
+                              ...prev,
+                              a1111: { ...prev.a1111, sampler: e.target.value }
+                            }))}
+                            className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200"
+                          />
+                        </div>
+                      )}
+                      {interfazSeleccionada === 'comfyui' && (
+                        <div>
+                          <label className="text-slate-400 block mb-1">Modelo:</label>
+                          <input
+                            type="text"
+                            value={configInterfaz.comfyui.modelo}
+                            onChange={(e) => setConfigInterfaz(prev => ({
+                              ...prev,
+                              comfyui: { ...prev.comfyui, modelo: e.target.value }
+                            }))}
+                            className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Botón de envío */}
+                <button
+                  onClick={enviarAInterfaz}
+                  disabled={enviando || !prompt}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm font-medium transition"
+                >
+                  {enviando ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Enviar a {interfazSeleccionada === 'a1111' ? 'A1111' : 'ComfyUI'}
+                    </>
+                  )}
+                </button>
+
+                {/* Mensaje de estado */}
+                {estadoEnvio && (
+                  <div className={`mt-2 p-2 rounded-lg text-xs ${estadoEnvio === 'exito' ? 'bg-green-900/30 border border-green-800/50 text-green-300' : 'bg-red-900/30 border border-red-800/50 text-red-300'}`}>
+                    {mensajeEnvio}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Variables de Plantilla */}
+            {plantillaSeleccionada && (
+              <div className="bg-slate-900 border border-cyan-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-cyan-400" />
+                    <label className="text-sm font-medium text-cyan-400">Variables de Plantilla: {plantillaSeleccionada.nombre}</label>
+                  </div>
+                  <button 
+                    onClick={() => { setPlantillaSeleccionada(null); setValoresPlantilla({}); }}
+                    className="text-xs text-slate-400 hover:text-white transition flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" /> Cerrar
+                  </button>
+                </div>
+                {plantillaSeleccionada.descripcion && (
+                  <p className="text-xs text-slate-500 mb-3">{plantillaSeleccionada.descripcion}</p>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {plantillaSeleccionada.variables?.map((variable, index) => (
+                    <div key={index}>
+                      <label className="text-xs text-cyan-400 block mb-1 font-medium capitalize">
+                        {variable.nombre.replace(/_/g, ' ')}
+                      </label>
+                      {variable.descripcion && (
+                        <p className="text-xs text-slate-500 mb-1">{variable.descripcion}</p>
+                      )}
+                      <input
+                        type="text"
+                        value={valoresPlantilla[variable.nombre] || ''}
+                        onChange={(e) => {
+                          const nuevosValores = { ...valoresPlantilla, [variable.nombre]: e.target.value };
+                          setValoresPlantilla(nuevosValores);
+                          // Actualizar sujeto combinando todos los valores
+                          const sujetoCombinado = Object.values(nuevosValores).filter(v => v).join(', ');
+                          setSujeto(sujetoCombinado);
+                        }}
+                        placeholder={variable.default || `Escribe ${variable.nombre}...`}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
+                      />
+                    </div>
+                  ))}
+                </div>
+                {/* Vista previa del sujeto combinado */}
+                {sujeto && (
+                  <div className="mt-3 bg-slate-800/50 rounded-lg p-2 border border-slate-700/50">
+                    <span className="text-xs text-slate-500 block mb-1">Sujeto combinado:</span>
+                    <p className="text-xs text-slate-300">{sujeto}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Columna derecha */}
