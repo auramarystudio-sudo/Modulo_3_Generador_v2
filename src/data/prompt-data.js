@@ -85,52 +85,114 @@ export const macrosSistema = [
 // ========== PLANTILLAS PREDEFINIDAS ==========
 export const plantillasSistema = [
   {
-    id: 't-retrato-basico', nombre: 'Retrato Básico',
-    plantilla: '{{calidad_max}}, {{fotografico}}, [sujeto], [expresion], {{iluminacion_estudio}}, {{composicion_retrato}}',
+    id: 't-retrato-basico', nombre: 'Retrato Fotográfico',
+    plantilla: '{{calidad_max}}, {{fotografico}}, [sujeto], [expresion], [vestimenta], {{iluminacion_estudio}}, {{composicion_retrato}}',
     variables: [
-      { nombre: 'sujeto', default: 'a young woman with brown hair' },
-      { nombre: 'expresion', default: 'smiling gently' }
+      { nombre: 'sujeto', default: 'a young woman with brown hair', descripcion: 'Describe al sujeto principal' },
+      { nombre: 'expresion', default: 'smiling gently, looking at camera', descripcion: 'Expresión facial y mirada' },
+      { nombre: 'vestimenta', default: 'wearing an elegant white dress', descripcion: 'Ropa o vestimenta del sujeto' }
     ],
-    descripcion: 'Plantilla básica para retratos fotográficos', es_sistema: true
+    descripcion: 'Retrato profesional con iluminación de estudio', es_sistema: true
+  },
+  {
+    id: 't-retrato-cinematografico', nombre: 'Retrato Cinematográfico',
+    plantilla: '{{calidad_max}}, {{cinematico}}, [sujeto], [expresion], [ambiente], [iluminacion], dramatic shadows, film grain, 35mm',
+    variables: [
+      { nombre: 'sujeto', default: 'a mysterious man in a dark coat', descripcion: 'Describe al personaje' },
+      { nombre: 'expresion', default: 'intense gaze, serious expression', descripcion: 'Expresión y emoción' },
+      { nombre: 'ambiente', default: 'rainy city street at night', descripcion: 'Escenario o ambiente' },
+      { nombre: 'iluminacion', default: 'neon lights reflecting on wet pavement', descripcion: 'Tipo de iluminación' }
+    ],
+    descripcion: 'Retrato con estilo cinematográfico dramático', es_sistema: true
   },
   {
     id: 't-paisaje-epico', nombre: 'Paisaje Épico',
-    plantilla: '{{calidad_max}}, epic landscape, [ubicacion], [hora_dia], [clima], {{composicion_paisaje}}, {{iluminacion_natural}}',
+    plantilla: '{{calidad_max}}, epic landscape photography, [ubicacion], [hora_dia], [clima], {{composicion_paisaje}}, {{iluminacion_natural}}, breathtaking vista',
     variables: [
-      { nombre: 'ubicacion', default: 'mountain valley with a crystal lake' },
-      { nombre: 'hora_dia', default: 'golden hour sunset' },
-      { nombre: 'clima', default: 'dramatic clouds, misty atmosphere' }
+      { nombre: 'ubicacion', default: 'mountain valley with a crystal clear lake', descripcion: 'Describe el lugar' },
+      { nombre: 'hora_dia', default: 'golden hour at sunset', descripcion: 'Momento del día' },
+      { nombre: 'clima', default: 'dramatic clouds, misty atmosphere, rays of light', descripcion: 'Condiciones climáticas' }
     ],
-    descripcion: 'Plantilla para paisajes épicos y dramáticos', es_sistema: true
+    descripcion: 'Paisajes épicos con iluminación natural', es_sistema: true
   },
   {
     id: 't-anime-personaje', nombre: 'Personaje Anime',
-    plantilla: '{{calidad_alta}}, {{anime}}, [personaje], [pose], [fondo], [emocion]',
+    plantilla: '{{calidad_alta}}, {{anime}}, [personaje], [pose], [fondo], [emocion], [detalles_extra]',
     variables: [
-      { nombre: 'personaje', default: 'a warrior girl with silver hair and blue eyes, wearing armor' },
-      { nombre: 'pose', default: 'dynamic action pose, holding a sword' },
-      { nombre: 'fondo', default: 'cherry blossom petals falling, sunset sky' },
-      { nombre: 'emocion', default: 'determined expression' }
+      { nombre: 'personaje', default: 'a warrior girl with silver hair and blue eyes, wearing ornate armor', descripcion: 'Apariencia del personaje' },
+      { nombre: 'pose', default: 'dynamic action pose, holding a glowing sword', descripcion: 'Pose o acción' },
+      { nombre: 'fondo', default: 'cherry blossom petals falling against sunset sky', descripcion: 'Fondo o escenario' },
+      { nombre: 'emocion', default: 'determined expression with fierce eyes', descripcion: 'Emoción del personaje' },
+      { nombre: 'detalles_extra', default: 'wind blowing hair, magical aura surrounding', descripcion: 'Detalles adicionales' }
     ],
-    descripcion: 'Plantilla para personajes de anime', es_sistema: true
+    descripcion: 'Personajes de anime con detalles completos', es_sistema: true
+  },
+  {
+    id: 't-anime-escena', nombre: 'Escena Anime',
+    plantilla: '{{calidad_alta}}, {{anime}}, [escena], [personajes], [accion], [ambiente], [atmosfera]',
+    variables: [
+      { nombre: 'escena', default: 'school rooftop during lunch break', descripcion: 'Tipo de escena' },
+      { nombre: 'personajes', default: 'two high school students, one boy and one girl', descripcion: 'Quiénes aparecen' },
+      { nombre: 'accion', default: 'sharing a bento, laughing together', descripcion: 'Qué están haciendo' },
+      { nombre: 'ambiente', default: 'bright sunny day, blue sky with white clouds', descripcion: 'Ambiente general' },
+      { nombre: 'atmosfera', default: 'peaceful and nostalgic mood, warm colors', descripcion: 'Atmósfera emocional' }
+    ],
+    descripcion: 'Escenas completas de anime con múltiples personajes', es_sistema: true
   },
   {
     id: 't-producto-comercial', nombre: 'Producto Comercial',
-    plantilla: '{{calidad_max}}, product photography, [producto], [fondo], {{composicion_producto}}, commercial lighting, advertising quality',
+    plantilla: '{{calidad_max}}, professional product photography, [producto], [material], [fondo], [iluminacion], {{composicion_producto}}, advertising quality, sharp details',
     variables: [
-      { nombre: 'producto', default: 'luxury perfume bottle, elegant glass design' },
-      { nombre: 'fondo', default: 'clean white background with soft gradient' }
+      { nombre: 'producto', default: 'luxury perfume bottle with elegant gold cap', descripcion: 'Describe el producto' },
+      { nombre: 'material', default: 'crystal glass with golden accents', descripcion: 'Materiales y texturas' },
+      { nombre: 'fondo', default: 'clean white background with soft gradient', descripcion: 'Fondo de la imagen' },
+      { nombre: 'iluminacion', default: 'soft studio lighting with subtle reflections', descripcion: 'Tipo de iluminación' }
     ],
-    descripcion: 'Plantilla para fotografía de producto comercial', es_sistema: true
+    descripcion: 'Fotografía de producto profesional para publicidad', es_sistema: true
   },
   {
     id: 't-cyberpunk-ciudad', nombre: 'Ciudad Cyberpunk',
-    plantilla: '{{calidad_max}}, {{cinematico}}, cyberpunk city, [escena], [detalles], neon lights, rain, futuristic, Blade Runner atmosphere',
+    plantilla: '{{calidad_max}}, {{cinematico}}, cyberpunk cityscape, [escena], [detalles], [personaje], neon lights, rain, futuristic dystopia, Blade Runner atmosphere',
     variables: [
-      { nombre: 'escena', default: 'narrow alley with holographic signs' },
-      { nombre: 'detalles', default: 'steam rising from vents, puddles reflecting neon' }
+      { nombre: 'escena', default: 'narrow alley between towering skyscrapers', descripcion: 'Tipo de escena urbana' },
+      { nombre: 'detalles', default: 'holographic advertisements, steam rising from vents, puddles reflecting neon', descripcion: 'Detalles del ambiente' },
+      { nombre: 'personaje', default: 'a lone figure in a trench coat walking through the rain', descripcion: 'Personaje opcional' }
     ],
-    descripcion: 'Plantilla para escenas cyberpunk urbanas', es_sistema: true
+    descripcion: 'Escenas cyberpunk con ambiente noir futurista', es_sistema: true
+  },
+  {
+    id: 't-fantasia-epica', nombre: 'Fantasía Épica',
+    plantilla: '{{calidad_max}}, epic fantasy art, [sujeto], [accion], [lugar], [atmosfera], {{iluminacion_dramatica}}, magical elements, grand scale',
+    variables: [
+      { nombre: 'sujeto', default: 'a powerful sorceress with flowing robes and a glowing staff', descripcion: 'Personaje principal' },
+      { nombre: 'accion', default: 'casting a massive spell, energy swirling around', descripcion: 'Acción que realiza' },
+      { nombre: 'lugar', default: 'ancient temple ruins on a floating island above the clouds', descripcion: 'Lugar o escenario' },
+      { nombre: 'atmosfera', default: 'mystical and awe-inspiring, divine light breaking through storm clouds', descripcion: 'Atmósfera general' }
+    ],
+    descripcion: 'Escenas épicas de fantasía con elementos mágicos', es_sistema: true
+  },
+  {
+    id: 't-retrato-fantasia', nombre: 'Retrato de Fantasía',
+    plantilla: '{{calidad_max}}, fantasy portrait, [personaje], [expresion], [vestimenta], [accesorios], [fondo], ethereal lighting, detailed',
+    variables: [
+      { nombre: 'personaje', default: 'an elven queen with long silver hair and pointed ears', descripcion: 'Describe al personaje' },
+      { nombre: 'expresion', default: 'wise and serene expression, glowing eyes', descripcion: 'Expresión facial' },
+      { nombre: 'vestimenta', default: 'elegant flowing robes with intricate golden embroidery', descripcion: 'Vestimenta' },
+      { nombre: 'accesorios', default: 'crown of crystals, magical amulet', descripcion: 'Accesorios y joyas' },
+      { nombre: 'fondo', default: 'enchanted forest with bioluminescent plants', descripcion: 'Fondo o ambiente' }
+    ],
+    descripcion: 'Retratos de personajes de fantasía detallados', es_sistema: true
+  },
+  {
+    id: 't-3d-personaje', nombre: 'Personaje 3D Render',
+    plantilla: '{{calidad_max}}, octane render, 3D character, [personaje], [pose], [iluminacion], [fondo], detailed textures, subsurface scattering, PBR materials',
+    variables: [
+      { nombre: 'personaje', default: 'a futuristic soldier with sleek armor and glowing visor', descripcion: 'Describe al personaje 3D' },
+      { nombre: 'pose', default: 'standing in a confident pose, weapon ready', descripcion: 'Pose del personaje' },
+      { nombre: 'iluminacion', default: 'dramatic rim lighting with blue and orange tones', descripcion: 'Iluminación del render' },
+      { nombre: 'fondo', default: 'sci-fi laboratory with holographic displays', descripcion: 'Fondo del render' }
+    ],
+    descripcion: 'Personajes en estilo render 3D fotorrealista', es_sistema: true
   },
 ];
 

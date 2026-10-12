@@ -44,6 +44,8 @@ export default function PromptGenerator() {
   const [mostrarAnalizador, setMostrarAnalizador] = useState(false);
   const [promptAnalizar, setPromptAnalizar] = useState('');
   const [sugerencias, setSugerencias] = useState([]);
+  const [plantillaSeleccionada, setPlantillaSeleccionada] = useState(null);
+  const [valoresPlantilla, setValoresPlantilla] = useState({});
   const textareaRef = useRef(null);
   const traduceTimeoutRef = useRef(null);
 
@@ -114,12 +116,34 @@ export default function PromptGenerator() {
   const agregarMacro = (nombre) => setPrompt(prev => agregarAlPrompt(prev, `{{${nombre}}}`));
   const agregarNegativo = (valor) => setNegative(prev => agregarAlPrompt(prev, valor));
 
-  const aplicarPlantilla = (plantilla) => {
-    const vars = {};
-    plantilla.variables?.forEach(v => { vars[v.nombre] = v.default; });
-    let resuelta = plantilla.plantilla;
-    Object.entries(vars).forEach(([k, v]) => { resuelta = resuelta.replace(new RegExp(`\\[${k}\\]`, 'g'), v); });
+  // Abrir formulario de plantilla
+  const abrirFormularioPlantilla = (plantilla) => {
+    const valoresDefault = {};
+    plantilla.variables?.forEach(v => { valoresDefault[v.nombre] = v.default || ''; });
+    setValoresPlantilla(valoresDefault);
+    setPlantillaSeleccionada(plantilla);
+  };
+
+  // Aplicar plantilla con valores del formulario
+  const aplicarPlantillaConValores = () => {
+    if (!plantillaSeleccionada) return;
+    let resuelta = plantillaSeleccionada.plantilla;
+    Object.entries(valoresPlantilla).forEach(([k, v]) => {
+      resuelta = resuelta.replace(new RegExp(`\\[${k}\\]`, 'g'), v || '');
+    });
     setPrompt(resolverMacros(resuelta, macros));
+    setPlantillaSeleccionada(null);
+    setValoresPlantilla({});
+  };
+
+  // Aplicar plantilla directamente (sin formulario)
+  const aplicarPlantilla = (plantilla) => {
+    if (plantilla.variables && plantilla.variables.length > 0) {
+      abrirFormularioPlantilla(plantilla);
+    } else {
+      let resuelta = plantilla.plantilla;
+      setPrompt(resolverMacros(resuelta, macros));
+    }
   };
 
   const generarAleatorio = () => {
@@ -469,18 +493,38 @@ export default function PromptGenerator() {
                     <h3 className="text-sm font-medium text-slate-300">Plantillas</h3>
                     <button onClick={() => setModalCRUD({ tipo: 'plantillas', modo: 'crear', item: {} })} className="p-1 rounded bg-cyan-900/50 text-cyan-400 hover:bg-cyan-900"><Plus className="w-4 h-4" /></button>
                   </div>
+                  <p className="text-xs text-slate-500 mb-3">Selecciona una plantilla para personalizar sus variables</p>
                   <div className="space-y-2">
                     {plantillas.map(p => (
-                      <div key={p.id} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700 group">
+                      <div key={p.id} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-cyan-800/50 transition group">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-slate-200">{p.nombre}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-slate-200">{p.nombre}</span>
+                            {p.variables && p.variables.length > 0 && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-purple-900/50 text-purple-400">
+                                {p.variables.length} var{p.variables.length > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
                           <div className="flex gap-1">
-                            <button onClick={() => aplicarPlantilla(p)} className="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 hover:bg-cyan-900 transition">Aplicar</button>
+                            <button onClick={() => aplicarPlantilla(p)} className="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 hover:bg-cyan-900 transition flex items-center gap-1">
+                              <Layers className="w-3 h-3" /> Configurar
+                            </button>
                             {!p.es_sistema && <button onClick={() => setModalCRUD({ tipo: 'plantillas', modo: 'editar', item: p })} className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100"><Edit3 className="w-3 h-3" /></button>}
                           </div>
                         </div>
-                        <p className="text-xs text-slate-500 truncate">{p.descripcion}</p>
-                        <p className="text-xs text-purple-400/70 mt-1 font-mono truncate">{p.plantilla.substring(0, 60)}...</p>
+                        <p className="text-xs text-slate-500 mb-1">{p.descripcion}</p>
+                        {/* Mostrar variables disponibles */}
+                        {p.variables && p.variables.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {p.variables.map((v, i) => (
+                              <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400">
+                                [{v.nombre}]
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-xs text-purple-400/70 mt-2 font-mono truncate">{p.plantilla.substring(0, 60)}...</p>
                       </div>
                     ))}
                   </div>
@@ -611,6 +655,99 @@ export default function PromptGenerator() {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Formulario de Plantilla */}
+      {plantillaSeleccionada && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setPlantillaSeleccionada(null)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                <Layers className="w-5 h-5 text-cyan-400" />
+                {plantillaSeleccionada.nombre}
+              </h3>
+              <button onClick={() => setPlantillaSeleccionada(null)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            
+            {/* Descripción de la plantilla */}
+            {plantillaSeleccionada.descripcion && (
+              <p className="text-sm text-slate-400 mb-4">{plantillaSeleccionada.descripcion}</p>
+            )}
+            
+            {/* Vista previa de la plantilla */}
+            <div className="bg-slate-800 rounded-lg p-3 mb-4 border border-slate-700">
+              <span className="text-xs text-slate-500 block mb-1">Plantilla:</span>
+              <p className="text-xs text-purple-400 font-mono">{plantillaSeleccionada.plantilla}</p>
+            </div>
+            
+            {/* Formulario dinámico */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-cyan-400" />
+                Completa las variables:
+              </h4>
+              {plantillaSeleccionada.variables?.map((variable, index) => (
+                <div key={index} className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+                  <label className="text-xs text-cyan-400 block mb-1 font-medium capitalize">
+                    {variable.nombre.replace(/_/g, ' ')}
+                  </label>
+                  {variable.descripcion && (
+                    <p className="text-xs text-slate-500 mb-2">{variable.descripcion}</p>
+                  )}
+                  <input
+                    type="text"
+                    value={valoresPlantilla[variable.nombre] || ''}
+                    onChange={(e) => setValoresPlantilla(prev => ({ ...prev, [variable.nombre]: e.target.value }))}
+                    placeholder={variable.default || `Escribe ${variable.nombre}...`}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
+                  />
+                  {variable.default && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        onClick={() => setValoresPlantilla(prev => ({ ...prev, [variable.nombre]: variable.default }))}
+                        className="text-xs text-slate-500 hover:text-cyan-400 transition flex items-center gap-1"
+                      >
+                        <span className="text-purple-400">↺</span> Usar valor por defecto
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {/* Vista previa del resultado */}
+            {Object.values(valoresPlantilla).some(v => v) && (
+              <div className="mt-4 bg-cyan-950/30 border border-cyan-800/30 rounded-lg p-3">
+                <span className="text-xs text-cyan-400 block mb-1">Vista previa:</span>
+                <p className="text-xs text-cyan-200 font-mono">
+                  {(() => {
+                    let preview = plantillaSeleccionada.plantilla;
+                    Object.entries(valoresPlantilla).forEach(([k, v]) => {
+                      if (v) preview = preview.replace(new RegExp(`\\[${k}\\]`, 'g'), v);
+                    });
+                    return preview.substring(0, 200) + (preview.length > 200 ? '...' : '');
+                  })()}
+                </p>
+              </div>
+            )}
+            
+            {/* Botones de acción */}
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={aplicarPlantillaConValores}
+                className="flex-1 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium transition"
+              >
+                ✓ Aplicar Plantilla
+              </button>
+              <button
+                onClick={() => setPlantillaSeleccionada(null)}
+                className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium transition"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}
