@@ -1000,6 +1000,231 @@ export default function PromptGenerator() {
         </div>
       )}
 
+      {mostrarPresets && (
+        <div className="fixed bottom-6 right-6 w-[500px] bg-slate-900 border border-amber-700/50 rounded-2xl p-6 shadow-2xl z-40 max-h-[80vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-amber-400" />
+              <h3 className="text-sm font-semibold text-amber-400">Presets Rápidos</h3>
+            </div>
+            <button onClick={() => setMostrarPresets(false)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {presets.map(p => (
+              <button key={p.id} onClick={() => aplicarPreset(p)} className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-amber-700/50 text-left transition">
+                <span className="text-sm font-medium text-amber-300 block mb-1">{p.nombre}</span>
+                <span className="text-xs text-slate-400">{p.descripcion}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {mostrarBatch && (
+        <div className="fixed bottom-6 right-6 w-[500px] bg-slate-900 border border-indigo-700/50 rounded-2xl p-6 shadow-2xl z-40 max-h-[80vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Grid3x3 className="w-5 h-5 text-indigo-400" />
+              <h3 className="text-sm font-semibold text-indigo-400">Batch Generator</h3>
+            </div>
+            <button onClick={() => { setMostrarBatch(false); setBatchResultados([]); }} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <input type="text" value={batchVariable} onChange={(e) => setBatchVariable(e.target.value)} placeholder="Variable [nombre]" className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200" />
+              <input type="text" value={batchOpciones} onChange={(e) => setBatchOpciones(e.target.value)} placeholder="opción1, opción2" className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200" />
+              <button onClick={ejecutarBatch} className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium">Generar</button>
+            </div>
+            {batchResultados.length > 0 && (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {batchResultados.map((r, i) => (
+                  <div key={i} className="bg-slate-800/50 rounded-lg p-3 flex items-center gap-2">
+                    <span className="text-xs text-indigo-400 w-8">#{i+1}</span>
+                    <span className="text-xs text-slate-300 flex-1 truncate">{r}</span>
+                    <button onClick={() => setPrompt(r)} className="text-xs px-2 py-1 rounded bg-indigo-950/50 text-indigo-300 hover:bg-indigo-950">Usar</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {mostrarEmbeddings && (
+        <div className="fixed bottom-6 right-6 w-[450px] bg-slate-900 border border-pink-700/50 rounded-2xl p-6 shadow-2xl z-40">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Cpu className="w-5 h-5 text-pink-400" />
+              <h3 className="text-sm font-semibold text-pink-400">Embeddings & LoRA</h3>
+            </div>
+            <button onClick={() => setMostrarEmbeddings(false)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <input type="text" value={embeddingNombre} onChange={(e) => setEmbeddingNombre(e.target.value)} placeholder="Nombre embedding" className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200" />
+              <input type="number" value={embeddingPeso} onChange={(e) => setEmbeddingPeso(parseFloat(e.target.value))} step="0.1" min="0" max="2" className="w-20 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200" />
+              <button onClick={agregarEmbedding} className="px-4 py-2 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-medium">+</button>
+            </div>
+            <div className="flex gap-2">
+              <input type="text" value={loraNombre} onChange={(e) => setLoraNombre(e.target.value)} placeholder="Nombre LoRA" className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200" />
+              <input type="number" value={loraPeso} onChange={(e) => setLoraPeso(parseFloat(e.target.value))} step="0.1" min="0" max="2" className="w-20 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200" />
+              <button onClick={agregarLoRA} className="px-4 py-2 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-medium">+</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarRegional && (
+        <div className="fixed bottom-6 right-6 w-[500px] bg-slate-900 border border-teal-700/50 rounded-2xl p-6 shadow-2xl z-40 max-h-[80vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Eye className="w-5 h-5 text-teal-400" />
+              <h3 className="text-sm font-semibold text-teal-400">Regional Prompter</h3>
+            </div>
+            <button onClick={() => setMostrarRegional(false)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="space-y-2">
+            {Object.entries(regiones).map(([key, region]) => (
+              <div key={key} className="flex items-center gap-3">
+                <span className="w-4 h-4 rounded" style={{ backgroundColor: region.color }}></span>
+                <span className="text-xs text-slate-300 w-24">{region.nombre}</span>
+                <input type="text" value={region.prompt || ''} onChange={(e) => setRegiones(prev => ({ ...prev, [key]: { ...prev[key], prompt: e.target.value } }))} placeholder={`Prompt para ${region.nombre}`} className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200" />
+              </div>
+            ))}
+          </div>
+          <button onClick={generarRegional} className="w-full mt-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium">Generar Regional</button>
+        </div>
+      )}
+
+      {variantes.length > 0 && (
+        <div className="fixed bottom-6 right-6 w-[500px] bg-slate-900 border border-purple-700/50 rounded-2xl p-6 shadow-2xl z-40 max-h-[80vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-purple-400" />
+              <h3 className="text-sm font-semibold text-purple-400">Variantes A/B</h3>
+            </div>
+            <button onClick={() => setVariantes([])} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="space-y-3">
+            {variantes.map((v, i) => (
+              <div key={i} className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-purple-400">{v.nombre}</span>
+                  <button onClick={() => setPrompt(v.prompt)} className="text-xs px-3 py-1 rounded-lg bg-purple-950/50 text-purple-300 hover:bg-purple-950">Usar</button>
+                </div>
+                <p className="text-xs text-slate-300 font-mono">{v.prompt}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {mostrarComparador && (
+        <div className="fixed bottom-6 right-6 w-[600px] bg-slate-900 border border-violet-700/50 rounded-2xl p-6 shadow-2xl z-40 max-h-[80vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Eye className="w-5 h-5 text-violet-400" />
+              <h3 className="text-sm font-semibold text-violet-400">Comparador de Prompts</h3>
+            </div>
+            <button onClick={() => { setMostrarComparador(false); setComparacionResult(null); }} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-violet-400 block mb-1">Prompt 1</label>
+              <textarea value={promptComparar1} onChange={(e) => setPromptComparar1(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200 min-h-[80px] font-mono" />
+            </div>
+            <div>
+              <label className="text-xs text-violet-400 block mb-1">Prompt 2</label>
+              <textarea value={promptComparar2} onChange={(e) => setPromptComparar2(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200 min-h-[80px] font-mono" />
+            </div>
+          </div>
+          <button onClick={ejecutarComparacion} className="w-full mt-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium">Comparar</button>
+          {comparacionResult && (
+            <div className="mt-4 space-y-2">
+              <div className="text-xs text-slate-400">Similitud: {Math.round(comparacionResult.similitud * 100)}%</div>
+              {comparacionResult.soloEnPrompt1.length > 0 && <div><span className="text-xs text-green-400">Solo en P1:</span><span className="text-xs text-slate-400 ml-2">{comparacionResult.soloEnPrompt1.join(', ')}</span></div>}
+              {comparacionResult.soloEnPrompt2.length > 0 && <div><span className="text-xs text-red-400">Solo en P2:</span><span className="text-xs text-slate-400 ml-2">{comparacionResult.soloEnPrompt2.join(', ')}</span></div>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {mostrarEmociones && (
+        <div className="fixed bottom-6 right-6 w-[500px] bg-slate-900 border border-rose-700/50 rounded-2xl p-6 shadow-2xl z-40 max-h-[80vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-rose-400" />
+              <h3 className="text-sm font-semibold text-rose-400">Generar por Emoción</h3>
+            </div>
+            <button onClick={() => setMostrarEmociones(false)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {Object.entries(emocionesPresets).map(([key, emocion]) => (
+              <button key={key} onClick={() => generarPorEmocion(key)} className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-rose-700/50 text-left transition">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">{emocion.icono}</span>
+                  <span className="text-sm font-medium text-rose-300">{emocion.nombre}</span>
+                </div>
+                <div className="flex gap-1">
+                  {emocion.colores.map((color, i) => (
+                    <div key={i} className="w-4 h-4 rounded" style={{ backgroundColor: color }}></div>
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {mostrarRecetas && (
+        <div className="fixed bottom-6 right-6 w-[500px] bg-slate-900 border border-lime-700/50 rounded-2xl p-6 shadow-2xl z-40 max-h-[80vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-lime-400" />
+              <h3 className="text-sm font-semibold text-lime-400">Recetas Probadas</h3>
+            </div>
+            <button onClick={() => setMostrarRecetas(false)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="space-y-3">
+            {recetasProbadas.map(receta => (
+              <div key={receta.id} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <span className="text-sm font-medium text-lime-300">{receta.nombre}</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-slate-500">⭐ {receta.rating}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${receta.dificultad === 'Principiante' ? 'bg-green-950/50 text-green-300' : receta.dificultad === 'Intermedio' ? 'bg-yellow-950/50 text-yellow-300' : 'bg-red-950/50 text-red-300'}`}>{receta.dificultad}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => { setPrompt(receta.prompt); setMostrarRecetas(false); }} className="px-3 py-1.5 rounded-lg bg-lime-600 hover:bg-lime-500 text-white text-xs font-medium">Usar</button>
+                </div>
+                <p className="text-xs text-slate-400 italic">{receta.explicacion}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {mostrarNegAssistant && (
+        <div className="fixed bottom-6 right-6 w-[450px] bg-slate-900 border border-red-700/50 rounded-2xl p-6 shadow-2xl z-40 max-h-[80vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              <h3 className="text-sm font-semibold text-red-400">Negativos Sugeridos</h3>
+            </div>
+            <button onClick={() => setMostrarNegAssistant(false)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="space-y-2">
+            {negSugeridos.map((s, i) => (
+              <div key={i} className="flex items-center gap-2 bg-slate-800/50 rounded-lg p-3">
+                <span className="text-xs text-slate-300 flex-1">{s}</span>
+                <button onClick={() => agregarNegativo(s)} className="text-xs px-3 py-1 rounded-lg bg-red-950/50 text-red-300 hover:bg-red-950">+ Añadir</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Modales */}
       {mostrarHistorial && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setMostrarHistorial(false)}>
