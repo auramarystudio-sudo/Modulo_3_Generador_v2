@@ -16,6 +16,10 @@ import {
   generarLinkCompartible, temasDisponibles, layoutsDisponibles, crearPerfil, 
   MacroRecorder, tutorialPasos, glosarioTerminos, buscarEnGlosario 
 } from '../../utils/prompt-features-advanced.js';
+import {
+  optimizarPromptConML, generarAnalytics, lightingPresets, niveles, calcularNivel,
+  calcularXP, workflowTemplates, ejecutarWorkflow
+} from '../../utils/prompt-premium.js';
 import { Sparkles, Copy, Check, Shuffle, Save, Star, Trash2, Plus, Edit3, X, Search, Zap, Globe, Wand2, Layers, Palette, Type, History, BarChart3, Focus, Send, Undo2, Redo2, BookOpen, Keyboard, Cpu, Grid3x3, Eye, AlertTriangle, TrendingUp, Clock, Award, Compass, Heart, Share2, Download, Upload, Settings, HelpCircle, Trophy, Target, Lightbulb, Mic } from 'lucide-react';
 
 export default function PromptGenerator() {
@@ -104,6 +108,16 @@ export default function PromptGenerator() {
   const macroRecorderRef = useRef(new MacroRecorder());
   const [grabandoMacro, setGrabandoMacro] = useState(false);
   const [mostrarStats, setMostrarStats] = useState(false);
+
+  // NUEVAS MEJORAS PREMIUM
+  const [xp, setXp] = useState(0);
+  const [mostrarOptimizer, setMostrarOptimizer] = useState(false);
+  const [optimizacion, setOptimizacion] = useState(null);
+  const [mostrarAnalytics, setMostrarAnalytics] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
+  const [mostrarLighting, setMostrarLighting] = useState(false);
+  const [mostrarWorkflows, setMostrarWorkflows] = useState(false);
+  const [ejecutandoWorkflow, setEjecutandoWorkflow] = useState(false);
 
   // Refs
   const textareaRef = useRef(null);
@@ -395,6 +409,76 @@ export default function PromptGenerator() {
   // Mejora 25: Buscar en glosario
   const resultadoGlosario = glosarioBusqueda ? buscarEnGlosario(glosarioBusqueda) : null;
 
+  // ========== MEJORAS PREMIUM ==========
+
+  // Mejora Premium 1: Prompt Optimizer con ML
+  const optimizarPrompt = () => {
+    const resultado = optimizarPromptConML(prompt, historial);
+    setOptimizacion(resultado);
+    setMostrarOptimizer(true);
+    setXp(prev => prev + calcularXP('generarPrompt'));
+  };
+
+  const aplicarOptimizacion = () => {
+    if (optimizacion?.optimizado) {
+      setPrompt(optimizacion.optimizado);
+      setMostrarOptimizer(false);
+    }
+  };
+
+  // Mejora Premium 2: Analytics Dashboard
+  const abrirAnalytics = () => {
+    const datos = generarAnalytics(historial, estilos, presets);
+    setAnalytics(datos);
+    setMostrarAnalytics(true);
+  };
+
+  // Mejora Premium 3: Lighting Presets
+  const aplicarLighting = (preset) => {
+    setPrompt(prev => prev ? `${prev}, ${preset.terminos}` : preset.terminos);
+    setMostrarLighting(false);
+    setXp(prev => prev + calcularXP('generarPrompt'));
+  };
+
+  // Mejora Premium 4: Sistema de Niveles
+  const nivelActual = calcularNivel(xp);
+
+  // Mejora Premium 5: Workflow Templates
+  const ejecutarWorkflowTemplate = async (workflow) => {
+    setEjecutandoWorkflow(true);
+    
+    const callbacks = {
+      seleccionarEstilo: (datos) => {
+        setEstilosSeleccionados(prev => {
+          const existe = prev.find(e => e.id === datos.id);
+          if (existe) return prev;
+          if (prev.length >= 5) return prev;
+          return [...prev, { id: datos.id, peso: 0.8 }];
+        });
+      },
+      añadirMacro: (datos) => {
+        setPrompt(prev => prev ? `${prev}, {{${datos.nombre}}}` : `{{${datos.nombre}}}`);
+      },
+      añadirBooster: (datos) => {
+        setPrompt(prev => prev ? `${prev}, ${datos.valor}` : datos.valor);
+      },
+      añadirLighting: (datos) => {
+        const preset = lightingPresets.find(p => p.id === datos.id);
+        if (preset) {
+          setPrompt(prev => prev ? `${prev}, ${preset.terminos}` : preset.terminos);
+        }
+      },
+      configurarNegative: (datos) => {
+        setNegative(prev => prev ? `${prev}, ${datos.valor}` : datos.valor);
+      }
+    };
+
+    await ejecutarWorkflow(workflow, callbacks);
+    setEjecutandoWorkflow(false);
+    setMostrarWorkflows(false);
+    setXp(prev => prev + calcularXP('completarChallenge'));
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       {/* Header */}
@@ -406,6 +490,24 @@ export default function PromptGenerator() {
             {ultimoGuardado && <span className="text-xs text-slate-500">💾 {ultimoGuardado}</span>}
           </div>
           <div className="flex items-center gap-2">
+            {/* Indicador de Nivel */}
+            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-gradient-to-r from-purple-900/50 to-pink-900/50 border border-purple-700/50">
+              <span className="text-lg">{nivelActual.icono}</span>
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-purple-300">{nivelActual.nombre}</span>
+                <div className="w-20 h-1 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all" style={{ width: `${nivelActual.progreso}%` }}></div>
+                </div>
+              </div>
+              <span className="text-xs text-slate-400">{xp} XP</span>
+            </div>
+
+            {/* Botones Premium */}
+            <button onClick={optimizarPrompt} className="p-2 rounded-lg bg-gradient-to-r from-green-900/50 to-emerald-900/50 text-green-400 hover:from-green-900 hover:to-emerald-900 transition" title="Optimizar con ML"><Sparkles className="w-4 h-4" /></button>
+            <button onClick={abrirAnalytics} className="p-2 rounded-lg bg-gradient-to-r from-blue-900/50 to-cyan-900/50 text-blue-400 hover:from-blue-900 hover:to-cyan-900 transition" title="Analytics"><TrendingUp className="w-4 h-4" /></button>
+            <button onClick={() => setMostrarLighting(true)} className="p-2 rounded-lg bg-gradient-to-r from-yellow-900/50 to-orange-900/50 text-yellow-400 hover:from-yellow-900 hover:to-orange-900 transition" title="Iluminación"><Lightbulb className="w-4 h-4" /></button>
+            <button onClick={() => setMostrarWorkflows(true)} className="p-2 rounded-lg bg-gradient-to-r from-purple-900/50 to-indigo-900/50 text-purple-400 hover:from-purple-900 hover:to-indigo-900 transition" title="Workflows"><Target className="w-4 h-4" /></button>
+
             <button onClick={() => setMostrarTutorial(true)} className="p-2 rounded-lg bg-blue-900/50 text-blue-400 hover:bg-blue-900 transition" title="Tutorial"><HelpCircle className="w-4 h-4" /></button>
             <button onClick={() => setMostrarGlosario(true)} className="p-2 rounded-lg bg-violet-900/50 text-violet-400 hover:bg-violet-900 transition" title="Glosario"><BookOpen className="w-4 h-4" /></button>
             <button onClick={() => setMostrarLogros(true)} className="p-2 rounded-lg bg-amber-900/50 text-amber-400 hover:bg-amber-900 transition" title="Logros"><Trophy className="w-4 h-4" /></button>
@@ -887,6 +989,238 @@ export default function PromptGenerator() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* ========== CARDS PREMIUM ========== */}
+
+            {/* Premium 1: Prompt Optimizer con ML */}
+            {mostrarOptimizer && optimizacion && (
+              <div className="bg-slate-900 border border-green-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-green-400" />
+                    <label className="text-sm font-medium text-green-400">Optimizador ML</label>
+                  </div>
+                  <button onClick={() => setMostrarOptimizer(false)} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                </div>
+                
+                {/* Score de optimización */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-slate-400">Score de optimización:</span>
+                    <span className="text-lg font-bold text-green-400">{optimizacion.score}/100</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all ${
+                        optimizacion.score >= 80 ? 'bg-green-500' :
+                        optimizacion.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${optimizacion.score}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Sugerencias */}
+                <div className="space-y-2 mb-4">
+                  <span className="text-xs text-slate-400">Sugerencias de mejora:</span>
+                  {optimizacion.sugerencias.map((sug, i) => (
+                    <div key={i} className={`p-2 rounded-lg border ${
+                      sug.prioridad === 'alta' ? 'bg-red-950/30 border-red-800/50' :
+                      sug.prioridad === 'media' ? 'bg-yellow-950/30 border-yellow-800/50' :
+                      'bg-blue-950/30 border-blue-800/50'
+                    }`}>
+                      <div className="flex items-start gap-2">
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${
+                          sug.prioridad === 'alta' ? 'bg-red-900 text-red-300' :
+                          sug.prioridad === 'media' ? 'bg-yellow-900 text-yellow-300' :
+                          'bg-blue-900 text-blue-300'
+                        }`}>
+                          {sug.prioridad}
+                        </span>
+                        <div className="flex-1">
+                          <p className="text-xs text-slate-300">{sug.mensaje}</p>
+                          <p className="text-xs text-slate-500 mt-1">{sug.accion}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Prompt optimizado */}
+                <div className="mb-4">
+                  <span className="text-xs text-slate-400 block mb-2">Prompt optimizado:</span>
+                  <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+                    <p className="text-xs text-green-300 font-mono">{optimizacion.optimizado}</p>
+                  </div>
+                </div>
+
+                {/* Botón aplicar */}
+                <button
+                  onClick={aplicarOptimizacion}
+                  className="w-full py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition"
+                >
+                  ✓ Aplicar Optimización
+                </button>
+              </div>
+            )}
+
+            {/* Premium 2: Analytics Dashboard */}
+            {mostrarAnalytics && analytics && (
+              <div className="bg-slate-900 border border-blue-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-blue-400" />
+                    <label className="text-sm font-medium text-blue-400">Analytics Dashboard</label>
+                  </div>
+                  <button onClick={() => setMostrarAnalytics(false)} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                </div>
+
+                {/* Stats principales */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-slate-800 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-blue-400">{analytics.totalPrompts}</p>
+                    <p className="text-xs text-slate-400">Total Prompts</p>
+                  </div>
+                  <div className="bg-slate-800 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-green-400">{analytics.promedioDiario}</p>
+                    <p className="text-xs text-slate-400">Promedio/Día</p>
+                  </div>
+                  <div className="bg-slate-800 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-yellow-400">{analytics.calidadPromedio}</p>
+                    <p className="text-xs text-slate-400">Calidad Prom.</p>
+                  </div>
+                </div>
+
+                {/* Top Estilos */}
+                <div className="mb-4">
+                  <span className="text-xs text-slate-400 block mb-2">Top Estilos:</span>
+                  <div className="space-y-1">
+                    {analytics.topEstilos.slice(0, 5).map((estilo, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-xs text-slate-300 flex-1">{estilo.nombre}</span>
+                        <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-blue-500 to-cyan-500"
+                            style={{ width: `${(estilo.count / analytics.topEstilos[0].count) * 100}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-slate-400 w-8 text-right">{estilo.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top Términos */}
+                <div className="mb-4">
+                  <span className="text-xs text-slate-400 block mb-2">Términos Frecuentes:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {analytics.topTerminos.slice(0, 10).map((term, i) => (
+                      <span key={i} className="text-xs px-2 py-1 rounded bg-blue-950/50 text-blue-300 border border-blue-800/50">
+                        {term.termino} ({term.count})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Prompts por día */}
+                <div>
+                  <span className="text-xs text-slate-400 block mb-2">Actividad (últimos 7 días):</span>
+                  <div className="flex items-end gap-1 h-16">
+                    {analytics.promptsPorDia.map((dia, i) => (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <div 
+                          className="w-full bg-gradient-to-t from-blue-600 to-cyan-500 rounded-t"
+                          style={{ height: `${Math.max(4, (dia.count / Math.max(...analytics.promptsPorDia.map(d => d.count))) * 100)}%` }}
+                        ></div>
+                        <span className="text-xs text-slate-500">{dia.dia.slice(-2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Premium 3: Lighting Presets */}
+            {mostrarLighting && (
+              <div className="bg-slate-900 border border-yellow-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-yellow-400" />
+                    <label className="text-sm font-medium text-yellow-400">Presets de Iluminación</label>
+                  </div>
+                  <button onClick={() => setMostrarLighting(false)} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {lightingPresets.map(preset => (
+                    <button
+                      key={preset.id}
+                      onClick={() => aplicarLighting(preset)}
+                      className="p-3 rounded-lg bg-slate-800 border border-slate-700 hover:border-yellow-800 text-left transition group"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-2xl">{preset.icono}</span>
+                        <span className="text-sm font-medium text-yellow-300">{preset.nombre}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mb-2">{preset.descripcion}</p>
+                      <div 
+                        className="h-8 rounded border border-slate-600"
+                        style={{ background: preset.preview }}
+                      ></div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Premium 5: Workflow Templates */}
+            {mostrarWorkflows && (
+              <div className="bg-slate-900 border border-purple-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-purple-400" />
+                    <label className="text-sm font-medium text-purple-400">Workflow Templates</label>
+                  </div>
+                  <button onClick={() => setMostrarWorkflows(false)} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                </div>
+
+                <p className="text-xs text-slate-500 mb-3">Flujos de trabajo predefinidos para resultados profesionales</p>
+
+                <div className="space-y-2">
+                  {workflowTemplates.map(workflow => (
+                    <div key={workflow.id} className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{workflow.icono}</span>
+                          <div>
+                            <span className="text-sm font-medium text-purple-300 block">{workflow.nombre}</span>
+                            <span className="text-xs text-slate-500">{workflow.pasos.length} pasos</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => ejecutarWorkflowTemplate(workflow)}
+                          disabled={ejecutandoWorkflow}
+                          className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 text-white text-xs font-medium transition"
+                        >
+                          {ejecutandoWorkflow ? 'Ejecutando...' : 'Ejecutar'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-400 mb-2">{workflow.descripcion}</p>
+                      <div className="space-y-1">
+                        {workflow.pasos.map((paso, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs text-slate-500">
+                            <span className="w-4 h-4 rounded-full bg-purple-900/50 text-purple-400 flex items-center justify-center text-xs">
+                              {i + 1}
+                            </span>
+                            <span>{paso.descripcion}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
