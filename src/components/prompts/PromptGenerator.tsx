@@ -8,7 +8,15 @@ import { traducirPromptESaEN } from '../../utils/translator.js';
 import { refinarPrompt } from '../../utils/llm-refiner.js';
 import { exportarPrompt } from '../../utils/api-integration.js';
 import { presetsIniciales, generarCombinacionesWildcards, sugerirNegativos, PromptHistory, guardarBorrador, cargarBorrador, insertarEmbedding, insertarLoRA, regionesDefault, generarRegionalPrompt, generarBatch, compararPrompts, atajosTeclado } from '../../utils/prompt-features.js';
-import { Sparkles, Copy, Check, Shuffle, Save, Star, Trash2, Plus, Edit3, X, Search, Zap, Globe, Wand2, Layers, Palette, Type, History, BarChart3, Focus, Send, Undo2, Redo2, BookOpen, Keyboard, Cpu, Grid3x3, Eye } from 'lucide-react';
+import { 
+  detectarConflictos, calcularCoherencia, analizarFrecuencia, estimarComplejidad, 
+  generarPromptDNA, analizarMood, logrosDefinidos, verificarLogros, emocionesPresets, 
+  generarPromptPorEmocion, recetasProbadas, generarNegativeCompleto, guardarFavorito, 
+  buscarEnFavoritos, exportarComoJSON, exportarComoCSV, importarDesdeJSON, 
+  generarLinkCompartible, temasDisponibles, layoutsDisponibles, crearPerfil, 
+  MacroRecorder, tutorialPasos, glosarioTerminos, buscarEnGlosario 
+} from '../../utils/prompt-features-advanced.js';
+import { Sparkles, Copy, Check, Shuffle, Save, Star, Trash2, Plus, Edit3, X, Search, Zap, Globe, Wand2, Layers, Palette, Type, History, BarChart3, Focus, Send, Undo2, Redo2, BookOpen, Keyboard, Cpu, Grid3x3, Eye, AlertTriangle, TrendingUp, Clock, Award, Compass, Heart, Share2, Download, Upload, Settings, HelpCircle, Trophy, Target, Lightbulb, Mic } from 'lucide-react';
 
 export default function PromptGenerator() {
   // Estados principales
@@ -62,6 +70,40 @@ export default function PromptGenerator() {
   const [mostrarAtajos, setMostrarAtajos] = useState(false);
   const [autoSaveActivo, setAutoSaveActivo] = useState(true);
   const [ultimoGuardado, setUltimoGuardado] = useState(null);
+
+  // NUEVAS MEJORAS - Estados
+  const [conflictos, setConflictos] = useState([]);
+  const [coherencia, setCoherencia] = useState(100);
+  const [complejidad, setComplejidad] = useState(null);
+  const [promptDNA, setPromptDNA] = useState([]);
+  const [mood, setMood] = useState({ dominante: 'neutral', intensidad: 0, todos: {} });
+  const [logros, setLogros] = useState([]);
+  const [mostrarLogros, setMostrarLogros] = useState(false);
+  const [mostrarEmociones, setMostrarEmociones] = useState(false);
+  const [mostrarRecetas, setMostrarRecetas] = useState(false);
+  const [mostrarNegGenerator, setMostrarNegGenerator] = useState(false);
+  const [negOpciones, setNegOpciones] = useState([]);
+  const [favoritos, setFavoritos] = useState([]);
+  const [mostrarFavoritos, setMostrarFavoritos] = useState(false);
+  const [mostrarTutorial, setMostrarTutorial] = useState(false);
+  const [tutorialPaso, setTutorialPaso] = useState(0);
+  const [mostrarGlosario, setMostrarGlosario] = useState(false);
+  const [glosarioBusqueda, setGlosarioBusqueda] = useState('');
+  const [temaActual, setTemaActual] = useState('oscuro');
+  const [layoutActual, setLayoutActual] = useState('clasico');
+  const [perfilActual, setPerfilActual] = useState(() => crearPerfil('Principal', 'personal'));
+  const [stats, setStats] = useState({
+    totalPrompts: 0,
+    estilosUsados: {},
+    prompts5Estrellas: 0,
+    presetsCreados: 0,
+    traducciones: 0,
+    promptsCortos: 0,
+    promptsLargos: 0
+  });
+  const macroRecorderRef = useRef(new MacroRecorder());
+  const [grabandoMacro, setGrabandoMacro] = useState(false);
+  const [mostrarStats, setMostrarStats] = useState(false);
 
   // Refs
   const textareaRef = useRef(null);
@@ -126,6 +168,29 @@ export default function PromptGenerator() {
     }
     return () => { if (traduceTimeoutRef.current) clearTimeout(traduceTimeoutRef.current); };
   }, [prompt, traducir]);
+
+  // Análisis automático del prompt
+  useEffect(() => {
+    if (prompt) {
+      setConflictos(detectarConflictos(prompt));
+      setCoherencia(calcularCoherencia(prompt));
+      setComplejidad(estimarComplejidad(prompt));
+      setPromptDNA(generarPromptDNA(prompt));
+      setMood(analizarMood(prompt));
+      
+      // Actualizar estadísticas
+      const tokens = estimarTokens(prompt);
+      setStats(prev => ({
+        ...prev,
+        totalPrompts: prev.totalPrompts + 1,
+        promptsCortos: tokens < 10 ? prev.promptsCortos + 1 : prev.promptsCortos,
+        promptsLargos: tokens > 50 ? prev.promptsLargos + 1 : prev.promptsLargos
+      }));
+      
+      // Verificar logros
+      setLogros(verificarLogros(stats));
+    }
+  }, [prompt]);
 
   // Atajos de teclado
   useEffect(() => {
@@ -240,6 +305,96 @@ export default function PromptGenerator() {
     setModalCRUD(null);
   };
 
+  // NUEVAS FUNCIONES - Mejoras 1-25
+  
+  // Mejora 15: Compartir prompt
+  const compartirPrompt = () => {
+    const link = generarLinkCompartible(prompt, negative);
+    navigator.clipboard.writeText(link);
+    alert('¡Link copiado al portapapeles!');
+  };
+
+  // Mejora 10: Guardar como favorito
+  const guardarComoFavorito = () => {
+    const nombre = window.prompt('Nombre para el favorito:', 'Mi prompt');
+    if (nombre) {
+      const fav = guardarFavorito(prompt, negative, nombre, []);
+      setFavoritos(prev => [...prev, fav]);
+      alert('¡Guardado en favoritos!');
+    }
+  };
+
+  // Mejora 10: Exportar favoritos
+  const exportarFavoritos = (formato) => {
+    let data;
+    if (formato === 'json') {
+      data = exportarComoJSON(favoritos);
+    } else {
+      data = exportarComoCSV(favoritos);
+    }
+    const blob = new Blob([data], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `favoritos.${formato}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Mejora 10: Importar favoritos
+  const importarFavoritos = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = importarDesdeJSON(e.target.result);
+      if (data && Array.isArray(data)) {
+        setFavoritos(prev => [...prev, ...data]);
+        alert(`¡${data.length} favoritos importados!`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Mejora 12: Generar prompt por emoción
+  const generarPorEmocion = (emocion) => {
+    const nuevoPrompt = generarPromptPorEmocion(emocion, sujeto || 'a person');
+    setPrompt(nuevoPrompt);
+    setMostrarEmociones(false);
+  };
+
+  // Mejora 14: Generar negative automático
+  const generarNegativoAutomatico = () => {
+    const negativeGen = generarNegativeCompleto(negOpciones);
+    setNegative(negativeGen);
+    setMostrarNegGenerator(false);
+  };
+
+  // Mejora 23: Macro Recorder
+  const toggleMacroRecorder = () => {
+    if (grabandoMacro) {
+      const macro = macroRecorderRef.current.detenerGrabacion();
+      setGrabandoMacro(false);
+      alert(`Macro grabado con ${macro.length} acciones`);
+    } else {
+      macroRecorderRef.current.iniciarGrabacion();
+      setGrabandoMacro(true);
+    }
+  };
+
+  // Mejora 24: Tutorial
+  const siguientePasoTutorial = () => {
+    if (tutorialPaso < tutorialPasos.length - 1) {
+      setTutorialPaso(tutorialPaso + 1);
+    } else {
+      setMostrarTutorial(false);
+      setTutorialPaso(0);
+    }
+  };
+
+  // Mejora 25: Buscar en glosario
+  const resultadoGlosario = glosarioBusqueda ? buscarEnGlosario(glosarioBusqueda) : null;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       {/* Header */}
@@ -251,6 +406,10 @@ export default function PromptGenerator() {
             {ultimoGuardado && <span className="text-xs text-slate-500">💾 {ultimoGuardado}</span>}
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setMostrarTutorial(true)} className="p-2 rounded-lg bg-blue-900/50 text-blue-400 hover:bg-blue-900 transition" title="Tutorial"><HelpCircle className="w-4 h-4" /></button>
+            <button onClick={() => setMostrarGlosario(true)} className="p-2 rounded-lg bg-violet-900/50 text-violet-400 hover:bg-violet-900 transition" title="Glosario"><BookOpen className="w-4 h-4" /></button>
+            <button onClick={() => setMostrarLogros(true)} className="p-2 rounded-lg bg-amber-900/50 text-amber-400 hover:bg-amber-900 transition" title="Logros"><Trophy className="w-4 h-4" /></button>
+            <button onClick={() => setMostrarFavoritos(true)} className="p-2 rounded-lg bg-yellow-900/50 text-yellow-400 hover:bg-yellow-900 transition" title="Favoritos"><Star className="w-4 h-4" /></button>
             <button onClick={() => setMostrarAtajos(true)} className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition" title="Atajos"><Keyboard className="w-4 h-4" /></button>
             <button onClick={undo} className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition" title="Deshacer (Ctrl+Z)"><Undo2 className="w-4 h-4" /></button>
             <button onClick={redo} className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition" title="Rehacer (Ctrl+Y)"><Redo2 className="w-4 h-4" /></button>
@@ -303,6 +462,60 @@ export default function PromptGenerator() {
               <textarea ref={textareaRef} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="El prompt se genera automáticamente..." className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition min-h-[120px] resize-y font-mono text-sm" />
               {traducir && (<div className="mt-3"><span className="text-xs text-emerald-400">🌐 Traducción EN:</span>{traduciendo && <span className="text-xs text-slate-500 animate-pulse ml-2">Traduciendo...</span>}<textarea value={promptEN} readOnly className="w-full bg-slate-800/50 border border-emerald-900/30 rounded-lg px-4 py-2 text-emerald-300 text-sm font-mono min-h-[60px] resize-y mt-1" /></div>)}
               {tokens.length > 0 && (<div className="mt-3"><div className="flex items-center gap-2 mb-2"><span className="text-xs text-slate-500">Tokens: ~{tokensEstimados}</span>{tokensEstimados > 75 && <span className="text-xs text-red-400">⚠️ Exceso</span>}<button onClick={procesarWildcards} className="ml-auto text-xs px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 hover:bg-indigo-900">🎲 Wildcards</button></div><div className="flex flex-wrap gap-1">{tokens.map((token, i) => (<span key={i} className={`px-2 py-0.5 rounded text-xs ${token.tipo === 'sujeto' ? 'bg-blue-900/50 text-blue-300' : token.tipo === 'estilo' ? 'bg-green-900/50 text-green-300' : token.tipo === 'booster' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-slate-800 text-slate-400'}`}>{token.texto}</span>))}</div></div>)}
+              
+              {/* Análisis de Coherencia y Conflictos */}
+              {prompt && (
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Coherencia:</span>
+                      <div className={`w-16 h-2 rounded-full bg-slate-800 overflow-hidden`}>
+                        <div className={`h-full transition-all ${coherencia >= 80 ? 'bg-green-500' : coherencia >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${coherencia}%` }}></div>
+                      </div>
+                      <span className="text-xs text-slate-400">{coherencia}%</span>
+                    </div>
+                    {complejidad && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-500" />
+                        <span className="text-xs text-slate-400">{complejidad.tiempoEstimado}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Conflictos */}
+                  {conflictos.length > 0 && (
+                    <div className="bg-red-950/30 border border-red-800/50 rounded-lg p-2">
+                      <div className="flex items-center gap-1 mb-1">
+                        <AlertTriangle className="w-3 h-3 text-red-400" />
+                        <span className="text-xs text-red-400 font-medium">Conflictos detectados:</span>
+                      </div>
+                      {conflictos.map((c, i) => (
+                        <div key={i} className="text-xs text-red-300 ml-4">• {c.mensaje}</div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Mood Analysis */}
+                  {mood.dominante !== 'neutral' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Mood:</span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-purple-950 text-purple-300">
+                        {mood.dominante} ({mood.intensidad})
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Prompt DNA */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">DNA:</span>
+                    <div className="flex gap-0.5">
+                      {promptDNA.map((value, i) => (
+                        <div key={i} className="w-1 h-4 bg-cyan-500 rounded" style={{ opacity: value / 100 }}></div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Negative */}
@@ -334,6 +547,10 @@ export default function PromptGenerator() {
                 <button onClick={() => setMostrarRegional(!mostrarRegional)} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs font-medium transition ${mostrarRegional ? 'bg-teal-500' : 'bg-teal-600 hover:bg-teal-500'}`}><Eye className="w-3 h-3" /> Regional</button>
                 <button onClick={() => { setVariantes(generarVariantes(prompt)); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition"><Layers className="w-3 h-3" /> Variantes</button>
                 <button onClick={() => { setPromptComparar1(prompt); setMostrarComparador(true); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition"><Eye className="w-3 h-3" /> Comparar</button>
+                <button onClick={() => setMostrarEmociones(!mostrarEmociones)} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs font-medium transition ${mostrarEmociones ? 'bg-rose-500' : 'bg-rose-600 hover:bg-rose-500'}`}><Heart className="w-3 h-3" /> Emociones</button>
+                <button onClick={() => setMostrarRecetas(!mostrarRecetas)} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs font-medium transition ${mostrarRecetas ? 'bg-lime-500' : 'bg-lime-600 hover:bg-lime-500'}`}><Lightbulb className="w-3 h-3" /> Recetas</button>
+                <button onClick={guardarComoFavorito} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-white text-xs font-medium transition"><Star className="w-3 h-3" /> Favorito</button>
+                <button onClick={compartirPrompt} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition"><Share2 className="w-3 h-3" /> Compartir</button>
               </div>
 
               {/* Envío a interfaces */}
@@ -503,6 +720,173 @@ export default function PromptGenerator() {
                       <p className="text-xs text-slate-300 font-mono truncate">{v.prompt}</p>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Mejora 12: Emociones Card */}
+            {mostrarEmociones && (
+              <div className="bg-slate-900 border border-rose-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2"><Heart className="w-4 h-4 text-rose-400" /><label className="text-sm font-medium text-rose-400">Generar por Emoción</label></div>
+                  <button onClick={() => setMostrarEmociones(false)} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                </div>
+                <p className="text-xs text-slate-500 mb-3">Selecciona una emoción y generaré un prompt optimizado para esa atmósfera</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(emocionesPresets).map(([key, emocion]) => (
+                    <button key={key} onClick={() => generarPorEmocion(key)} className="p-3 rounded-lg bg-slate-800 border border-slate-700 hover:border-rose-800 text-left transition">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-2xl">{emocion.icono}</span>
+                        <span className="text-sm font-medium text-rose-300">{emocion.nombre}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        {emocion.colores.map((color, i) => (
+                          <div key={i} className="w-4 h-4 rounded" style={{ backgroundColor: color }}></div>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Mejora 13: Recetas Card */}
+            {mostrarRecetas && (
+              <div className="bg-slate-900 border border-lime-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2"><Lightbulb className="w-4 h-4 text-lime-400" /><label className="text-sm font-medium text-lime-400">Recetas Probadas</label></div>
+                  <button onClick={() => setMostrarRecetas(false)} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                </div>
+                <p className="text-xs text-slate-500 mb-3">Combinaciones pre-validadas que funcionan muy bien</p>
+                <div className="space-y-2">
+                  {recetasProbadas.map(receta => (
+                    <div key={receta.id} className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <span className="text-sm font-medium text-lime-300">{receta.nombre}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-slate-500">⭐ {receta.rating}</span>
+                            <span className="text-xs text-slate-500">👁️ {receta.uso}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${receta.dificultad === 'Principiante' ? 'bg-green-950 text-green-300' : receta.dificultad === 'Intermedio' ? 'bg-yellow-950 text-yellow-300' : 'bg-red-950 text-red-300'}`}>{receta.dificultad}</span>
+                          </div>
+                        </div>
+                        <button onClick={() => { setPrompt(receta.prompt); setMostrarRecetas(false); }} className="text-xs px-2 py-1 rounded bg-lime-600 text-white hover:bg-lime-500">Usar</button>
+                      </div>
+                      <p className="text-xs text-slate-400 italic">{receta.explicacion}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Mejora 10: Favoritos Card */}
+            {mostrarFavoritos && (
+              <div className="bg-slate-900 border border-yellow-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2"><Star className="w-4 h-4 text-yellow-400" /><label className="text-sm font-medium text-yellow-400">Favoritos ({favoritos.length})</label></div>
+                  <div className="flex gap-2">
+                    <button onClick={() => exportarFavoritos('json')} className="text-xs px-2 py-1 rounded bg-yellow-950 text-yellow-300 hover:bg-yellow-900"><Download className="w-3 h-3 inline" /> JSON</button>
+                    <label className="text-xs px-2 py-1 rounded bg-yellow-950 text-yellow-300 hover:bg-yellow-900 cursor-pointer"><Upload className="w-3 h-3 inline" /> Importar<input type="file" accept=".json" onChange={importarFavoritos} className="hidden" /></label>
+                    <button onClick={() => setMostrarFavoritos(false)} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                  </div>
+                </div>
+                {favoritos.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-4">No hay favoritos aún. Guarda prompts como favoritos para acceder rápidamente.</p>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {favoritos.map(fav => (
+                      <div key={fav.id} className="bg-slate-800 rounded-lg p-2 border border-slate-700">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-yellow-300">{fav.nombre}</span>
+                          <div className="flex gap-1">
+                            <button onClick={() => { setPrompt(fav.prompt); setNegative(fav.negative); }} className="text-xs px-2 py-0.5 rounded bg-yellow-950 text-yellow-300 hover:bg-yellow-900">Usar</button>
+                            <button onClick={() => setFavoritos(prev => prev.filter(f => f.id !== fav.id))} className="text-red-400 hover:text-red-300"><Trash2 className="w-3 h-3" /></button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-400 truncate">{fav.prompt}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mejora 24: Tutorial Card */}
+            {mostrarTutorial && (
+              <div className="bg-slate-900 border border-blue-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2"><HelpCircle className="w-4 h-4 text-blue-400" /><label className="text-sm font-medium text-blue-400">Tutorial Interactivo</label></div>
+                  <button onClick={() => { setMostrarTutorial(false); setTutorialPaso(0); }} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                </div>
+                <div className="bg-blue-950/30 border border-blue-800/50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-blue-400">Paso {tutorialPaso + 1} de {tutorialPasos.length}</span>
+                    <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 transition-all" style={{ width: `${((tutorialPaso + 1) / tutorialPasos.length) * 100}%` }}></div>
+                    </div>
+                  </div>
+                  <h4 className="text-sm font-medium text-blue-300 mb-2">{tutorialPasos[tutorialPaso].titulo}</h4>
+                  <p className="text-xs text-slate-300 mb-4">{tutorialPasos[tutorialPaso].contenido}</p>
+                  <button onClick={siguientePasoTutorial} className="w-full py-2 rounded bg-blue-600 text-white text-xs hover:bg-blue-500">
+                    {tutorialPaso === tutorialPasos.length - 1 ? 'Finalizar' : 'Siguiente'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Mejora 25: Glosario Card */}
+            {mostrarGlosario && (
+              <div className="bg-slate-900 border border-violet-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2"><BookOpen className="w-4 h-4 text-violet-400" /><label className="text-sm font-medium text-violet-400">Glosario de Términos</label></div>
+                  <button onClick={() => { setMostrarGlosario(false); setGlosarioBusqueda(''); }} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                </div>
+                <input type="text" value={glosarioBusqueda} onChange={(e) => setGlosarioBusqueda(e.target.value)} placeholder="Buscar término..." className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-xs text-slate-200 mb-3" />
+                {resultadoGlosario ? (
+                  <div className="bg-violet-950/30 border border-violet-800/50 rounded-lg p-3">
+                    <h4 className="text-sm font-medium text-violet-300 mb-2 capitalize">{resultadoGlosario[0]}</h4>
+                    <p className="text-xs text-slate-300 mb-2">{resultadoGlosario[1].definicion}</p>
+                    <div className="bg-slate-800 rounded p-2">
+                      <span className="text-xs text-slate-500 block mb-1">Ejemplo:</span>
+                      <code className="text-xs text-violet-300">{resultadoGlosario[1].ejemplo}</code>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {Object.entries(glosarioTerminos).slice(0, 10).map(([termino, info]) => (
+                      <div key={termino} className="bg-slate-800 rounded p-2">
+                        <span className="text-xs font-medium text-violet-300 capitalize">{termino}</span>
+                        <p className="text-xs text-slate-400 mt-1">{info.definicion.substring(0, 80)}...</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mejora 7: Logros Card */}
+            {mostrarLogros && (
+              <div className="bg-slate-900 border border-amber-900/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-400" /><label className="text-sm font-medium text-amber-400">Logros ({logros.length}/{logrosDefinidos.length})</label></div>
+                  <button onClick={() => setMostrarLogros(false)} className="text-xs text-slate-400 hover:text-white"><X className="w-3 h-3" /></button>
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {logrosDefinidos.map(logro => {
+                    const desbloqueado = logros.some(l => l.id === logro.id);
+                    return (
+                      <div key={logro.id} className={`rounded-lg p-2 border ${desbloqueado ? 'bg-amber-950/30 border-amber-800/50' : 'bg-slate-800 border-slate-700 opacity-50'}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{logro.icono}</span>
+                          <div className="flex-1">
+                            <span className={`text-xs font-medium ${desbloqueado ? 'text-amber-300' : 'text-slate-400'}`}>{logro.nombre}</span>
+                            <p className="text-xs text-slate-500">{logro.descripcion}</p>
+                          </div>
+                          {desbloqueado && <Check className="w-4 h-4 text-amber-400" />}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
